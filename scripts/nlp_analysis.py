@@ -20,9 +20,15 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Ensure you have the necessary NLTK data
 nltk.download('stopwords')
-nltk.download('es_core_news_lg')
+# nltk.download('es_core_news_lg')
 # Load the spaCy model
-nlp = spacy.load("es_core_news_lg")
+# Intentar cargar el modelo y descargarlo si no está disponible
+try:
+    nlp = spacy.load("es_core_news_lg")
+except OSError:
+    # Si no está disponible, lo descargamos
+    spacy.cli.download("es_core_news_lg")
+    nlp = spacy.load("es_core_news_lg")
 
 # Define the preprocess_text function
 def preprocess_text(text):
