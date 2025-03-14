@@ -24,11 +24,11 @@ nltk.download('stopwords')
 # Load the spaCy model
 # Intentar cargar el modelo y descargarlo si no está disponible
 try:
-    nlp = spacy.load("es_core_news_lg")
+    nlp = spacy.load("es_core_news_md")  # Cambia 'lg' por 'md'
 except OSError:
     # Si no está disponible, lo descargamos
-    spacy.cli.download("es_core_news_lg")
-    nlp = spacy.load("es_core_news_lg")
+    spacy.cli.download("es_core_news_md")
+    nlp = spacy.load("es_core_news_md")
 
 # Define the preprocess_text function
 def preprocess_text(text):
