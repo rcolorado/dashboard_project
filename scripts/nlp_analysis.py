@@ -20,7 +20,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Ensure you have the necessary NLTK data
 nltk.download('stopwords')
-nltk.dowload('es_core_news_lg')
+nltk.download('es_core_news_lg')
 # Load the spaCy model
 nlp = spacy.load("es_core_news_lg")
 
