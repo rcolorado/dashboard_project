@@ -465,4 +465,4 @@ elif metric_type == "Entrenamientos":
             colormap="cividis"      # Mejor paleta de colores
         )
         # Mostrar el gráfico en Streamlit
-        st.image(buf, use_container_width=True)
+        st.image(buf)
