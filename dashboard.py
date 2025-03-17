@@ -144,7 +144,9 @@ if metric_type == "Recurrencia":
     fig = px.bar(df_metrics, x="Terminó el programa", y="Cantidad de Usuarios", color="Recurrencia", text="Porcentaje de Usuarios",
                  color_discrete_map={"SÍ": PRIMARY_COLOR, "NO": ACCENT_COLOR}, title="Distribución de Usuarios")
     fig.update_traces(texttemplate="%{text}", textposition="outside")
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(width=1000, height=600)
+    st.plotly_chart(fig)
+    # st.plotly_chart(fig, use_container_width=True)
 
 elif metric_type == "Conexiones":
     st.markdown(f"<h2 style='color: {ACCENT_COLOR};'> \U0001F4CC Métricas de {metric_type}</h2>", unsafe_allow_html=True)
