@@ -68,20 +68,11 @@ def load_and_process_data_trainings():
     """Carga datos de MongoDB y los procesa en DataFrames."""
     collection_names = [
         "surveys", "connections", "progress", "companies", "groups", "answers",
-        "sessions", "trainings", "actions", "feedback", "users", "translations"
+        "sessions", "trainings", "actions", "feedback", "users", "translations",
+        "threads"
     ]
 
     df = {
             collection: get_collection_data(collection) for collection in collection_names
         }
     return df
-'''
-def load_and_process_data():
-    """Carga datos de MongoDB y los procesa en DataFrames."""
-    df = {col: get_collection_data(col) for col in collection_columns.keys()}
-
-    for col, columns in collection_columns.items():
-        if not df[col].empty:
-            df[col] = df[col][columns["keep"]].rename(columns=columns["rename"])
-    return df
-'''
