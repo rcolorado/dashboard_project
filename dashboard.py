@@ -263,7 +263,7 @@ elif metric_type == "Coach":
     st.download_button(
         label="📥 Descargar datos en Excel",
         data=excel_file,
-        file_name="usuarios_respondieron.xlsx",
+        file_name="conversaciones_coach.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
