@@ -463,3 +463,64 @@ def calcular_metricas_entrenamientos(df, module_name=None, company_name=None, gr
     if module_name:
         df_trainings_summary = df_trainings_summary[df_progress_summary["Módulo"] == module_name]
     return df_trainings_summary, valid_training_actions, valid_training_notepad_one_note, valid_training_notepad_two_note, valid_training_affirmations, valid_survey_answers_suggestions, training_affirmations_summary
+
+def calcular_metricas_coach(df, company_name = None, group_name = None):
+    
+    df_companies = df["companies"][["_id", "name"]].rename(columns={"_id": "company", "name": "company_name"})
+    df_groups = df["groups"][["_id", "name", "company"]].rename(columns={"_id": "group", "name": "group_name"})
+    df_users = df["users"][[
+        '_id', "email", "firstName", "lastName", 'company', 'group'
+    ]].rename(columns={"_id": "user"}).merge(df_groups).merge(df_companies)
+
+    df_users["name"] = df_users["firstName"] + " " + df_users["lastName"]
+    df_users.drop(columns=["firstName", "lastName"], inplace=True)
+    df_coach = df["threads"].merge(df_users)
+    ignore_companies = ["Demos Clientes"]
+    df_coach = df_coach.query(
+        "company_name not in @ignore_companies"
+    ).reset_index(drop=True)
+
+    # Normalizar DataFrame y valores de entrada
+    df_coach["company_name"] = df_coach["company_name"].str.strip()
+    df_coach["group_name"] = df_coach["group_name"].str.strip()
+
+    company_name = company_name.strip() if company_name else None
+    group_name = group_name.strip() if group_name else None
+
+    # Aplicar los filtros
+    if company_name and company_name != "todas":
+        df_coach = df_coach[df_coach["company_name"] == company_name]
+
+    if group_name and group_name != "todos":
+        df_coach = df_coach[df_coach["group_name"] == group_name]
+
+    # Tabla de usuarios que recibieron mensajes del coach: Empresa, Grupo, Usuario (nº de usuarios)
+    recibieron_msg_summary = df_coach.query("assistantMessagesAmount > 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
+    recibieron_msg_summary = recibieron_msg_summary.rename(columns={
+        "company_name": "Compañía", "group_name": "Grupo", "user_count": "# Usuarios"
+    })
+    recibieron_msg_summary.to_excel("Alcanzados por el coach.xlsx")
+  
+    respondieron_msg_summary = df_coach.query("userMessagesAmount > 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
+    respondieron_msg_summary = respondieron_msg_summary.rename(columns={
+        "company_name": "Compañía", "group_name": "Grupo", "user_count": "# Usuarios"
+    })
+    respondieron_msg_summary.to_excel("Respondieron al coach.xlsx")
+   
+    # Tabla de usuarios que respondieron mensajes del coach
+    respondieron_msg = pd.json_normalize(
+    df_coach.query("userMessagesAmount > 0").explode("messages").to_dict(orient="records")
+)
+    respondieron_msg = respondieron_msg[[
+        "company_name", "group_name", "name", "email", "messages.date", "messages.role", "messages.content"
+    ]]
+    respondieron_msg["messages.role"] = respondieron_msg["messages.role"].replace({
+        "user": "Usuario", "assistant": "Coach"
+    })
+    respondieron_msg["messages.date"] = pd.to_datetime(respondieron_msg["messages.date"]).dt.strftime("%Y-%m-%d %H:%M:%S")
+    respondieron_msg = respondieron_msg.rename(columns={
+        "company_name": "Compañía", "group_name": "Grupo", "name": "Nombre", "email": "Correo",
+        "messages.date": "Fecha", "messages.role": "Rol", "messages.content": "Mensaje"
+    })
+    # respondieron_msg.to_excel("Conversaciones coach.xlsx")
+    return respondieron_msg,  recibieron_msg_summary,  respondieron_msg_summary
