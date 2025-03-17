@@ -7,9 +7,11 @@ textblob
 scikit-learn
 nltk
 streamlit==1.32.2
+numpy==1.26.0
 spacy==3.7.2
 thinc==8.2.1
-numpy==1.23.5
+setuptools>=68.0.0
+pip>=25.0.1
 pymongo
 python-dotenv
 es-core-news-md @ https://github.com/explosion/spacy-models/releases/download/es_core_news_md-3.7.0/es_core_news_md-3.7.0.tar.gz
