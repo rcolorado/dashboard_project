@@ -142,7 +142,7 @@ if metric_type == "Recurrencia":
         """, unsafe_allow_html=True) 
     
     fig = px.bar(df_metrics, x="Terminó el programa", y="Cantidad de Usuarios", color="Recurrencia", text="Porcentaje de Usuarios",
-                 color_discrete_map={"SÍ": {PRIMARY_COLOR}, "NO": {ACCENT_COLOR}, title="Distribución de Usuarios")
+                 color_discrete_map={"SÍ": PRIMARY_COLOR, "NO": ACCENT_COLOR}, title="Distribución de Usuarios")
     fig.update_traces(texttemplate="%{text}", textposition="outside")
     st.plotly_chart(fig, use_container_width=True)
 
