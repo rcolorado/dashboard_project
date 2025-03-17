@@ -9,6 +9,7 @@ from scripts.mongo_connector import get_company_names, get_groups_for_company
 from scripts.data_processing import load_and_process_data, load_and_process_data_trainings
 from scripts.metrics import calcular_metricas_recurrencia, calcular_metricas_connections, calcular_metricas_entrenamientos
 from scripts.nlp_analysis import preprocess_text, plot_text_length_distribution, plot_word_frequency, sentiment_analysis, topic_modeling, generate_bigram_word_cloud, interpretar_sentimiento,  interpretar_subjetividad
+from scripts.metrics import calcular_metricas_coach
 from collections import Counter
 
 # Colores personalizados
@@ -89,7 +90,7 @@ st.markdown(
 )
 
 # Filtros
-metric_type = st.selectbox("Seleccione el tipo de métrica", ["Recurrencia", "Conexiones", "Entrenamientos"], index=0)
+metric_type = st.selectbox("Seleccione el tipo de métrica", ["Recurrencia", "Conexiones", "Entrenamientos", "Coach"], index=0)
 
 if metric_type != "Entrenamientos":
     company_names = get_company_names()
@@ -120,9 +121,25 @@ if metric_type == "Recurrencia":
         valor = df_additional.loc['days_since_completion', 0]
         valor = 0 if pd.isna(valor) else int(valor)
         st.metric("📅 Días desde Check-out", f"{valor} días")
-    
-    st.markdown("### 📊 Distribución de Usuarios")
-    st.dataframe(df_metrics)
+    col4, col5 = st.columns(2)
+    with col4:
+        st.markdown("### 📊 Distribución de Usuarios")
+        st.dataframe(df_metrics)
+    with col5: 
+       # Add written summary
+        st.markdown(f"""
+        <div style='background-color: {BACKGROUND_COLOR}; padding: 1rem; border-radius: 8px;'>
+            <h3 style='color: {PRIMARY_COLOR};'>¿Qué significa estar en recurrencia?</h3>
+            <ul style='color: {TEXT_COLOR};'>
+                </p>Un usuario se encuentra en recurrencia si cumple <strong> tres condiciones</strong></p>
+                <ul>
+                    <li style='margin-left: 3rem;'>Ha terminado el programa (check-out completo).</li>
+                    <li style='margin-left: 3rem;'>Ha vuelto a entrar a la plataforma, aunque sea al día siguiente de haber terminado el programa.</li>
+                    <li style='margin-left: 3rem;'>Se ha conectado durante el año 2025.</li>
+                </ul>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True) 
     
     fig = px.bar(df_metrics, x="Terminó el programa", y="Cantidad de Usuarios", color="Recurrencia", text="Porcentaje de Usuarios",
                  color_discrete_map={"SÍ": PRIMARY_COLOR, "NO": ACCENT_COLOR}, title="Distribución de Usuarios")
@@ -188,6 +205,66 @@ elif metric_type == "Conexiones":
       # Redondear a entero
       # df_exercises["Tiempo medio de conexión (minutos)"] = df_exercises["Tiempo medio de conexión (minutos)"].round(0).astype(int)
       # st.dataframe(df_exercises)
+
+elif metric_type == "Coach":
+    st.markdown(f"<h2 style='color: {ACCENT_COLOR};'> 👨‍🚀 Métricas de {metric_type}</h2>", unsafe_allow_html=True)
+
+    company_filter = selected_company if selected_company != "Todas" else None
+    group_filter = selected_group if selected_group != "Todos" else None
+    
+    respondieron_msg,  recibieron_msg_summary, respondieron_msg_summary = calcular_metricas_coach(df_trainings, company_filter, group_filter)
+    total_recibieron = recibieron_msg_summary['# Usuarios'].sum()
+    total_respondieron = respondieron_msg_summary['# Usuarios'].sum()
+
+    # Diseño en columnas para las métricas
+    st.markdown("### 👥 Distribución de Usuarios")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(label="📩 Recibieron ", value=f"{total_recibieron}", help=" Nº total de usuarios que clickaron el pop-up del coach")
+
+    with col2:
+        st.metric(label="📨 Respondieron", value = f"{total_respondieron:,}", help = "Nº total de usuarios que respondieron el mensaje del coach")
+        # Crear DataFrame para el gráfico de barras
+        df_plot = pd.DataFrame({
+            "Estado": ["Recibieron mensaje", "Respondieron mensaje"],
+            "Cantidad de Usuarios": [total_recibieron, total_respondieron]
+        })
+
+    # Gráfico de barras: Recibieron vs. Respondieron
+    st.markdown("### 📊 Comparación de Usuarios que Recibieron vs. Respondieron")
+    fig = px.bar(df_plot, x="Estado", y="Cantidad de Usuarios", text="Cantidad de Usuarios",
+                color="Estado", color_discrete_map={
+                    "Recibieron mensaje": "#2A6A7D",  # Azul
+                    "Respondieron mensaje": "#ff7f0e"  # Naranja
+                },
+                title="Usuarios que Recibieron vs. Respondieron el mensaje")
+
+    fig.update_traces(texttemplate="%{text}", textposition="outside")
+    fig.update_layout(yaxis_title="Cantidad de Usuarios")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Función para descargar el DataFrame en Excel
+    def descargar_excel(df, nombre_archivo="datos_coach.xlsx"):
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name="Datos")
+        output.seek(0)
+        return output
+
+    # ✅ Mostrar el DataFrame `respondieron_msg`
+    st.markdown("### 📋 Detalle de las conversaciones")
+    st.dataframe(respondieron_msg, use_container_width=True)
+
+    # Botón para descargar los datos en Excel
+    excel_file = descargar_excel(respondieron_msg)
+    st.download_button(
+        label="📥 Descargar datos en Excel",
+        data=excel_file,
+        file_name="usuarios_respondieron.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 elif metric_type == "Entrenamientos":
@@ -389,4 +466,3 @@ elif metric_type == "Entrenamientos":
         )
         # Mostrar el gráfico en Streamlit
         st.image(buf, use_container_width=True)
-
