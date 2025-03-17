@@ -7,8 +7,8 @@ import pandas as pd
 load_dotenv()  # Cargar variables de entorno
 
 # Conectar a MongoDB
-MONGO_URI = os.getenv('MONGO_URI')
-DB_NAME = os.getenv('MONGO_DB')
+MONGO_URI = st.secrets["mongodb"]["MONGO_URI"]
+DB_NAME = st.secrets["mongodb"]["MONGO_DB"]
 
 def get_mongo_connection():
     """Devuelve una conexión a la base de datos MongoDB."""
