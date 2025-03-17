@@ -41,7 +41,7 @@ def check_password():
         submit_button = st.form_submit_button("Entrar")
 
         if submit_button:
-            if username == os.getenv("APP_USERNAME") and password == os.getenv("APP_PASSWORD"):
+            if username == st.secrets["app"]["APP_USERNAME"] and password ==  st.secrets["app"]["APP_PASSWORD"]:
                 st.session_state["authenticated"] = True
                 st.rerun()
             else:
