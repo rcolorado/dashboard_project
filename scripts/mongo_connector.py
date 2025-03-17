@@ -3,7 +3,7 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 import pandas as pd
-
+import streamlit as st
 load_dotenv()  # Cargar variables de entorno
 
 # Conectar a MongoDB
