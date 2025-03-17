@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 import streamlit as st
-load_dotenv()  # Cargar variables de entorno
+# load_dotenv()  # Cargar variables de entorno
 
 # Conectar a MongoDB
 MONGO_URI = st.secrets["mongodb"]["MONGO_URI"]
