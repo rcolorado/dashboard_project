@@ -8,5 +8,6 @@ textblob
 scikit-learn
 nltk
 spacy
+es-core-news-md==3.8.0
 pymongo
 python-dotenv
