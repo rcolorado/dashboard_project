@@ -17,18 +17,21 @@ from io import BytesIO
 import re
 import unicodedata
 from sklearn.feature_extraction.text import TfidfVectorizer
+import subprocess
 
 # Ensure you have the necessary NLTK data
 nltk.download('stopwords')
 # nltk.download('es_core_news_lg')
 # Load the spaCy model
+
 # Intentar cargar el modelo y descargarlo si no está disponible
 try:
-    nlp = spacy.load("es_core_news_md")  # Cambia 'lg' por 'md'
-except OSError:
-    # Si no está disponible, lo descargamos
-    spacy.cli.download("es_core_news_md")
     nlp = spacy.load("es_core_news_md")
+except OSError:
+    subprocess.run(["python", "-m", "spacy", "download", "es_core_news_md"])
+    nlp = spacy.load("es_core_news_md")
+
+print("Modelo cargado exitosamente.")
 
 # Define the preprocess_text function
 def preprocess_text(text):
