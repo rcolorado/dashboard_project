@@ -21,6 +21,7 @@ import subprocess
 
 # Ensure you have the necessary NLTK data
 nltk.download('stopwords')
+nltk.download('punkt_tab')
 # nltk.download('es_core_news_lg')
 # Load the spaCy model
 
