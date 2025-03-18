@@ -49,7 +49,7 @@ collection_columns = {
     }
 }
 
-
+@st.cache_data
 def load_and_process_data():
     """Carga datos de MongoDB y los procesa en DataFrames."""
     df = {col: get_collection_data(col) for col in collection_columns.keys()}
@@ -63,7 +63,7 @@ def load_and_process_data():
                 
     return df
 
-
+@st.cache_data
 def load_and_process_data_trainings():
     """Carga datos de MongoDB y los procesa en DataFrames."""
     collection_names = [
