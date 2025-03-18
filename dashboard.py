@@ -188,24 +188,6 @@ elif metric_type == "Conexiones":
     fig.update_traces(texttemplate="%{text:.0f}", textposition="outside")
     st.plotly_chart(fig, use_container_width=True)
 
-# Conexión por módulo y ejercicio --- No se pueden obtener métricas reales con los datos actuales
-
-    # col5,col6 = st.columns(2)
-    # with col5:
-      # st.markdown("### 📊 Tiempo de conexión medio por módulo")
-      # df_modules=df_connections.groupby("module_name", as_index=False).agg({"connectionDuration": "mean"}).sort_values(by="connectionDuration", ascending=False)
-      # df_modules.rename(columns={"module_name": "Módulo", "connectionDuration": "Tiempo medio de conexión (minutos)"}, inplace=True)
-      # Redondear a entero
-      # df_modules["Tiempo medio de conexión (minutos)"] = df_modules["Tiempo medio de conexión (minutos)"].round(0).astype(int)
-      # st.dataframe(df_modules)
-    # with col6: 
-      # st.markdown("### 📊 Tiempo de conexión medio por ejercicio")
-      # df_exercises=df_connections.groupby("exercise_name", as_index=False).agg({"connectionDuration": "mean"}).sort_values(by="connectionDuration", ascending=False)
-      # df_exercises.rename(columns={"exercise_name": "Ejercicio", "connectionDuration": "Tiempo medio de conexión (minutos)"}, inplace=True)
-      # Redondear a entero
-      # df_exercises["Tiempo medio de conexión (minutos)"] = df_exercises["Tiempo medio de conexión (minutos)"].round(0).astype(int)
-      # st.dataframe(df_exercises)
-
 elif metric_type == "Coach":
     st.markdown(f"<h2 style='color: {ACCENT_COLOR};'> 👨‍🚀 Métricas de {metric_type}</h2>", unsafe_allow_html=True)
 
