@@ -69,7 +69,9 @@ def calcular_metricas_connections(df, company_name=None, group_name=None):
     ).merge(
         df["companies"], how="left"
     )
-
+  # Verificar el resultado del merge
+    print("Después de merge de conexiones y usuarios:")
+    print(df_connections.head())
 
     # Aplicar filtros si se especifican
     if company_name:
