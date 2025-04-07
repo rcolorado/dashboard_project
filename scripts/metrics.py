@@ -496,8 +496,6 @@ def calcular_metricas_coach(df, company_name = None, group_name = None):
     if group_name and group_name != "todos":
         df_coach = df_coach[df_coach["group_name"] == group_name]
 
-    num_users = df_users[df_users["company_name"] == company_name].shape[0]
-
     # Tabla de usuarios que recibieron mensajes del coach: Empresa, Grupo, Usuario (nº de usuarios)
     recibieron_msg_summary = df_coach.query("assistantMessagesAmount >= 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
     recibieron_msg_summary = recibieron_msg_summary.rename(columns={
