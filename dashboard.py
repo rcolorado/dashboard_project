@@ -209,7 +209,7 @@ elif metric_type == "Coach":
         st.metric(label="📨 Respondieron", value = f"{total_respondieron}", help = "Nº total de usuarios que respondieron el mensaje del coach")
         # Crear DataFrame para el gráfico de barras
         df_plot = pd.DataFrame({
-            "Estado": ["Recibieron mensaje", "Respondieron mensaje"],
+            "Estado": ["Abrieron mensaje", "Respondieron mensaje"],
             "Cantidad de Usuarios": [total_recibieron, total_respondieron]
         })
 
