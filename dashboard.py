@@ -194,13 +194,12 @@ elif metric_type == "Coach":
     company_filter = selected_company if selected_company != "Todas" else None
     group_filter = selected_group if selected_group != "Todos" else None
     
-    num_users, respondieron_msg,  recibieron_msg_summary, respondieron_msg_summary = calcular_metricas_coach(df_trainings, company_filter, group_filter)
+    respondieron_msg,  recibieron_msg_summary, respondieron_msg_summary = calcular_metricas_coach(df_trainings, company_filter, group_filter)
     total_recibieron = recibieron_msg_summary['# Usuarios'].sum()
     total_respondieron = respondieron_msg_summary['# Usuarios'].sum()
 
     # Diseño en columnas para las métricas
     st.markdown("### 👥 Distribución de Usuarios")
-    st.metric(label="👥 Nº total de usuarios", value=f"{num_users:,}", help="Nº total de usuarios que recibieron el mensaje del coach")
     col1, col2 = st.columns(2)
 
     with col1:
