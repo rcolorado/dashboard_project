@@ -525,4 +525,4 @@ def calcular_metricas_coach(df, company_name = None, group_name = None):
         "messages.date": "Fecha", "messages.role": "Rol", "messages.content": "Mensaje"
     })
     # respondieron_msg.to_excel("Conversaciones coach.xlsx")
-    return respondieron_msg,  recibieron_msg_summary,  respondieron_msg_summary, num_users
+    return respondieron_msg,  recibieron_msg_summary,  respondieron_msg_summary
