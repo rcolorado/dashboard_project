@@ -496,14 +496,16 @@ def calcular_metricas_coach(df, company_name = None, group_name = None):
     if group_name and group_name != "todos":
         df_coach = df_coach[df_coach["group_name"] == group_name]
 
+    num_users = df_users[df_users["company_name"] == company_name].shape[0]
+
     # Tabla de usuarios que recibieron mensajes del coach: Empresa, Grupo, Usuario (nº de usuarios)
-    recibieron_msg_summary = df_coach.query("assistantMessagesAmount > 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
+    recibieron_msg_summary = df_coach.query("assistantMessagesAmount >= 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
     recibieron_msg_summary = recibieron_msg_summary.rename(columns={
         "company_name": "Compañía", "group_name": "Grupo", "user_count": "# Usuarios"
     })
     recibieron_msg_summary.to_excel("Alcanzados por el coach.xlsx")
   
-    respondieron_msg_summary = df_coach.query("userMessagesAmount > 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
+    respondieron_msg_summary = df_coach.query("userMessagesAmount >= 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
     respondieron_msg_summary = respondieron_msg_summary.rename(columns={
         "company_name": "Compañía", "group_name": "Grupo", "user_count": "# Usuarios"
     })
@@ -525,4 +527,4 @@ def calcular_metricas_coach(df, company_name = None, group_name = None):
         "messages.date": "Fecha", "messages.role": "Rol", "messages.content": "Mensaje"
     })
     # respondieron_msg.to_excel("Conversaciones coach.xlsx")
-    return respondieron_msg,  recibieron_msg_summary,  respondieron_msg_summary
+    return respondieron_msg,  recibieron_msg_summary,  respondieron_msg_summary, num_users

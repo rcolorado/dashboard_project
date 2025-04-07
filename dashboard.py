@@ -194,17 +194,17 @@ elif metric_type == "Coach":
     company_filter = selected_company if selected_company != "Todas" else None
     group_filter = selected_group if selected_group != "Todos" else None
     
-    respondieron_msg,  recibieron_msg_summary, respondieron_msg_summary = calcular_metricas_coach(df_trainings, company_filter, group_filter)
+    num_users, respondieron_msg,  recibieron_msg_summary, respondieron_msg_summary = calcular_metricas_coach(df_trainings, company_filter, group_filter)
     total_recibieron = recibieron_msg_summary['# Usuarios'].sum()
     total_respondieron = respondieron_msg_summary['# Usuarios'].sum()
 
     # Diseño en columnas para las métricas
     st.markdown("### 👥 Distribución de Usuarios")
-
+    st.metric(label="👥 Nº total de usuarios", value=f"{num_users:,}", help="Nº total de usuarios que recibieron el mensaje del coach")
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric(label="📩 Recibieron ", value=f"{total_recibieron}", help=" Nº total de usuarios que clickaron el pop-up del coach")
+        st.metric(label="📩 Abrieron mensaje ", value=f"{total_recibieron}", help=" Nº total de usuarios que clickaron el pop-up del coach")
 
     with col2:
         st.metric(label="📨 Respondieron", value = f"{total_respondieron:,}", help = "Nº total de usuarios que respondieron el mensaje del coach")
@@ -215,13 +215,13 @@ elif metric_type == "Coach":
         })
 
     # Gráfico de barras: Recibieron vs. Respondieron
-    st.markdown("### 📊 Comparación de Usuarios que Recibieron vs. Respondieron")
+    st.markdown("### 📊 Comparación de Usuarios que Abrieron vs. Respondieron")
     fig = px.bar(df_plot, x="Estado", y="Cantidad de Usuarios", text="Cantidad de Usuarios",
                 color="Estado", color_discrete_map={
-                    "Recibieron mensaje": "#2A6A7D",  # Azul
+                    "Abrieron mensaje": "#2A6A7D",  # Azul
                     "Respondieron mensaje": "#ff7f0e"  # Naranja
                 },
-                title="Usuarios que Recibieron vs. Respondieron el mensaje")
+                title="Usuarios que Abrieron vs. Respondieron el mensaje")
 
     fig.update_traces(texttemplate="%{text}", textposition="outside")
     fig.update_layout(yaxis_title="Cantidad de Usuarios")
