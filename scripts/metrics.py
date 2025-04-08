@@ -70,8 +70,8 @@ def calcular_metricas_connections(df, company_name=None, group_name=None):
         df["companies"], how="left"
     )
   # Verificar el resultado del merge
-    print("Después de merge de conexiones y usuarios:")
-    print(df_connections.head())
+  #  print("Después de merge de conexiones y usuarios:")
+  # print(df_connections.head())
 
     # Aplicar filtros si se especifican
     if company_name:
@@ -80,25 +80,25 @@ def calcular_metricas_connections(df, company_name=None, group_name=None):
         df_connections = df_connections[df_connections["group_name"] == group_name]
 
     # Unir ejercicios con respuestas
-    df["exercises"] = df["exercises"].merge(df["answers"], how="left")
+  #  df["exercises"] = df["exercises"].merge(df["answers"], how="left")
 
     # Explode listas module_id
-    if "module_id" in df["exercises"].columns:
+  #  if "module_id" in df["exercises"].columns:
         df["exercises"] = df["exercises"].explode("module_id")
 
     # Unir ejercicios con módulos
-    df["exercises"] = df["exercises"].merge(df["modules"], how="left")
+   # df["exercises"] = df["exercises"].merge(df["modules"], how="left")
 
     # Explode listas episode_id
-    if "episode_id" in df["exercises"].columns:
+   # if "episode_id" in df["exercises"].columns:
         df["exercises"] = df["exercises"].explode("episode_id")
-    df["exercises"] = df["exercises"].merge(df["episodes"], how="left")
+  #  df["exercises"] = df["exercises"].merge(df["episodes"], how="left")
     
     # Unir conexiones con ejercicios
-    df_connections = df_connections.merge(df["exercises"], how="left")
+  #  df_connections = df_connections.merge(df["exercises"], how="left")
     
     # Seleccionar columnas específicas y guardarlas en un nuevo DataFrame
-    selected_columns = ["user_id", "connection_id", "connectionDuration", "group_name", "company_name",  "module_name", "episode_name", "exercise_name", "startDate"]
+    selected_columns = ["user_id", "connection_id", "connectionDuration", "group_name", "company_name", "startDate"]
     df_selected = df_connections[selected_columns]
 
     return df_selected
