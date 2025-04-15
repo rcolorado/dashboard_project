@@ -6,10 +6,10 @@ import os
 import base64
 from io import BytesIO
 from scripts.mongo_connector import get_company_names, get_groups_for_company
-from scripts.data_processing import load_and_process_data, load_and_process_data_trainings
+from scripts.data_processing import load_and_process_data, load_and_process_data_trainings, load_and_process_data_cumplimentacion
 from scripts.metrics import calcular_metricas_recurrencia, calcular_metricas_connections, calcular_metricas_entrenamientos
 from scripts.nlp_analysis import preprocess_text, plot_text_length_distribution, plot_word_frequency, sentiment_analysis, topic_modeling, generate_bigram_word_cloud, interpretar_sentimiento,  interpretar_subjetividad
-from scripts.metrics import calcular_metricas_coach
+from scripts.metrics import calcular_metricas_coach, contar_usuarios_unicos, obtener_resumen_progreso
 from collections import Counter
 
 # Colores personalizados
@@ -23,11 +23,11 @@ st.set_page_config(page_title="Dashboard bchange",
                    page_icon="🚀", 
                    layout="wide",
                    initial_sidebar_state="expanded",
-                   menu_items={
-                        'Get Help': 'https://www.extremelycoolapp.com/help',
-                        'Report a bug': "https://www.extremelycoolapp.com/bug",
-                        'About': "# This is a header. This is an *extremely* cool app!"
-    }
+                   #menu_items={
+                    #    'Get Help': "https://bchange.ai",
+                    #    'Report a bug': "rcolorado@bchange.ai",
+                    #    'About': "# This is an intern use dashboard!"
+    #}
 )
 
 def check_password():
@@ -69,6 +69,12 @@ if "df_trainings" not in st.session_state:
     st.session_state.df_trainings = load_and_process_data_trainings()
 df_trainings = st.session_state.df_trainings  # Referencia al dataframe en session_state
 
+# Cargar el dataframe solo una vez por sesión
+if "df_cumplimentacion" not in st.session_state:
+    st.session_state.df_cumplimentacion = load_and_process_data_cumplimentacion()
+
+df_cumplimentacion = st.session_state.df_cumplimentacion  # Referencia al dataframe en session_state
+
 # Estilos CSS personalizados
 st.markdown(
     f"""
@@ -90,13 +96,25 @@ st.markdown(
 )
 
 # Filtros
-metric_type = st.selectbox("Seleccione el tipo de métrica", ["Recurrencia", "Conexiones", "Entrenamientos", "Coach"], index=0)
+metric_type = st.selectbox("Seleccione el tipo de métrica", ["Recurrencia", "Conexiones", "Entrenamientos", "Coach", "Cumplimentación"], index=0)
 
 if metric_type != "Entrenamientos":
+    # Empresas excluidas
+    empresas_excluidas = ["Auren", "Demos Clientes"]
+
+    # Obtener y filtrar empresas
     company_names = get_company_names()
+    company_names = [name for name in company_names if name not in empresas_excluidas]
+
     selected_company = st.selectbox("Seleccione una empresa", ["Todas"] + company_names)
 
-    groups = get_groups_for_company(selected_company) if selected_company != "Todas" else []
+    # Obtener y filtrar grupos si se seleccionó una empresa
+    if selected_company != "Todas":
+        groups = get_groups_for_company(selected_company)
+        groups = [g for g in groups if g != "Cumplimentación"]
+    else:
+        groups = []
+
     selected_group = st.selectbox("Seleccione un grupo", ["Todos"] + groups)
 else:
     selected_company = None
@@ -197,17 +215,17 @@ elif metric_type == "Coach":
     respondieron_msg,  recibieron_msg_summary, respondieron_msg_summary = calcular_metricas_coach(df_trainings, company_filter, group_filter)
     total_recibieron = recibieron_msg_summary['# Usuarios'].sum()
     total_respondieron = respondieron_msg_summary['# Usuarios'].sum()
-
+    usuarios = contar_usuarios_unicos(df_trainings, fecha_inicio='2025-02-28', company_name=company_filter, group_name = group_filter)
     # Diseño en columnas para las métricas
     st.markdown("### 👥 Distribución de Usuarios")
-
+    st.metric (label="👤 Nº total de usuarios", value = f"{usuarios}", help = "Nº total de usuarios que han recibido el mensaje del coach")
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric(label="📩 Recibieron ", value=f"{total_recibieron}", help=" Nº total de usuarios que clickaron el pop-up del coach")
+        st.metric(label="📩 Recibieron ", value=f"{total_recibieron}", help=" Nº total de usuarios que abrieron el pop-up del coach")
 
     with col2:
-        st.metric(label="📨 Respondieron", value = f"{total_respondieron:,}", help = "Nº total de usuarios que respondieron el mensaje del coach")
+        st.metric(label="📨 Respondieron", value = f"{total_respondieron}", help = "Nº total de usuarios que respondieron el mensaje del coach")
         # Crear DataFrame para el gráfico de barras
         df_plot = pd.DataFrame({
             "Estado": ["Recibieron mensaje", "Respondieron mensaje"],
@@ -236,7 +254,7 @@ elif metric_type == "Coach":
         output.seek(0)
         return output
 
-    # ✅ Mostrar el DataFrame `respondieron_msg`
+    #  Mostrar el DataFrame `respondieron_msg`
     st.markdown("### 📋 Detalle de las conversaciones")
     st.dataframe(respondieron_msg, use_container_width=True)
 
@@ -247,6 +265,96 @@ elif metric_type == "Coach":
         data=excel_file,
         file_name="conversaciones_coach.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+elif metric_type == "Cumplimentación":
+    st.markdown(f"<h2 style='color: {ACCENT_COLOR};'> \U0001F4CC Métricas de {metric_type}</h2>", unsafe_allow_html=True)
+    # Filtros
+    company_filter = selected_company if selected_company != "Todas" else None
+    group_filter = selected_group if selected_group != "Todos" else None
+    df_merged, resumen_general, resumen_modulos = obtener_resumen_progreso(df_cumplimentacion, company_filter, group_filter)
+
+    # --- KPIs
+    total_usuarios = df_merged["user_id"].nunique()
+    completados = df_merged[df_merged["completed"] == True]["user_id"].nunique()
+    porcentaje_completado = (completados / total_usuarios * 100) if total_usuarios > 0 else 0
+    st.markdown("##### 📊 Resumen de Cumplimentación General")
+    kpi1, kpi2, kpi3 = st.columns(3)
+    kpi1.metric("👤 Usuarios", total_usuarios)
+    kpi2.metric("✅ Completados", completados)
+    kpi3.metric("📈 % Completado", f"{porcentaje_completado:.2f}%")
+
+    # --- Resumen por tipo de progreso
+    st.markdown("### 🔁 Cumplimentación por tipo de progreso")
+    resumen_general = resumen_general.rename(columns={
+    'progress_type': 'Tipo',
+    'total_usuarios': 'Total usuarios',
+    'usuarios_completados': 'Completados',
+    'porcentaje_completado': 'Porcentaje (%)'
+    })
+
+    # Reemplazar los valores en la columna 'Tipo'
+    resumen_general['Tipo'] = resumen_general['Tipo'].replace({
+        'progress_checkpoint': 'checkpoint',
+        'progress_episode': 'episodios',
+        'progress_exercise': 'ejercicios',
+        'progress_module': 'modulos',
+        'progress_training': 'entrenamientos'
+    })
+    col1, col2 = st.columns(2)
+
+    with col1:
+        resumen_general
+
+    with col2:
+        fig_tipo = px.pie(
+            resumen_general,
+            names='Tipo',
+            values='Completados',
+            title='Distribución de completados por tipo',
+            color_discrete_sequence=[PRIMARY_COLOR, ACCENT_COLOR, TEXT_COLOR]
+        )
+        st.plotly_chart(fig_tipo, use_container_width=True)
+
+    # --- Resumen por módulo
+    st.markdown("---")
+    st.markdown("### 📚 Cumplimentación por módulo")
+    resumen_modulos = resumen_modulos.rename(columns={
+    'module_name': 'Módulo',
+    'total_usuarios': 'Total usuarios',
+    'usuarios_completados': 'Completados',
+    'porcentaje_completado': 'Porcentaje (%)'
+    })
+
+     # Reemplazar los valores en la columna 'Tipo'
+    resumen_modulos['Módulo'] = resumen_modulos['Módulo'].replace({
+        'transformacion-intrapersonal': 'Módulo 1: Transformación Intrapersonal',
+        'transformacion-interpersonal': 'Módulo 2: Transformación Interpersonal',  
+        'transformacion-transversal': 'Módulo 3: Transformación Transversal',
+    })
+    col3, col4 = st.columns(2)
+    with col3:
+        st.dataframe(resumen_modulos, use_container_width=True)
+
+    with col4:
+        fig_modulos = px.bar(
+            resumen_modulos.sort_values("Porcentaje (%)", ascending=True),
+            x="Porcentaje (%)",
+            y="Módulo",
+            orientation="h",
+            color="Porcentaje (%)",
+            color_continuous_scale=[[0, ACCENT_COLOR], [1,PRIMARY_COLOR]],
+            labels={"Porcentaje (%)": "% Completado", "Módulo": "Módulo"},
+            title="Progreso por módulo (%)"
+        )
+        fig_modulos.update_layout(
+            yaxis_title="", 
+            xaxis_title="% Completado", 
+            height=400,
+            font_color=TEXT_COLOR,
+            plot_bgcolor=BACKGROUND_COLOR,
+            paper_bgcolor=BACKGROUND_COLOR
+        )
+        st.plotly_chart(fig_modulos, use_container_width=True)
 
 
 elif metric_type == "Entrenamientos":
