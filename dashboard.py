@@ -222,7 +222,7 @@ elif metric_type == "Coach":
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric(label="📩 Recibieron ", value=f"{total_recibieron}", help=" Nº total de usuarios que abrieron el pop-up del coach")
+        st.metric(label="📩 Abrieron mensaje", value=f"{total_recibieron}", help=" Nº total de usuarios que abrieron el pop-up del coach")
 
     with col2:
         st.metric(label="📨 Respondieron", value = f"{total_respondieron}", help = "Nº total de usuarios que respondieron el mensaje del coach")
