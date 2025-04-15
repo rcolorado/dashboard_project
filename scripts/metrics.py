@@ -79,9 +79,26 @@ def calcular_metricas_connections(df, company_name=None, group_name=None):
     if group_name:
         df_connections = df_connections[df_connections["group_name"] == group_name]
 
+    # Unir ejercicios con respuestas
+    df["exercises"] = df["exercises"].merge(df["answers"], how="left")
+
+    # Explode listas module_id
+    if "module_id" in df["exercises"].columns:
+        df["exercises"] = df["exercises"].explode("module_id")
+
+    # Unir ejercicios con módulos
+    df["exercises"] = df["exercises"].merge(df["modules"], how="left")
+
+    # Explode listas episode_id
+    if "episode_id" in df["exercises"].columns:
+        df["exercises"] = df["exercises"].explode("episode_id")
+    df["exercises"] = df["exercises"].merge(df["episodes"], how="left")
+    
+    # Unir conexiones con ejercicios
+    df_connections = df_connections.merge(df["exercises"], how="left")
     
     # Seleccionar columnas específicas y guardarlas en un nuevo DataFrame
-    selected_columns = ["user_id", "connection_id", "connectionDuration", "group_name", "company_name",  "startDate"]
+    selected_columns = ["user_id", "connection_id", "connectionDuration", "group_name", "company_name",  "module_name", "episode_name", "exercise_name", "startDate"]
     df_selected = df_connections[selected_columns]
 
     return df_selected

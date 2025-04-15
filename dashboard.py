@@ -222,24 +222,24 @@ elif metric_type == "Coach":
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric(label="📩 Abrieron mensaje", value=f"{total_recibieron}", help=" Nº total de usuarios que abrieron el pop-up del coach")
+        st.metric(label="📩 Recibieron ", value=f"{total_recibieron}", help=" Nº total de usuarios que clickaron el pop-up del coach")
 
     with col2:
         st.metric(label="📨 Respondieron", value = f"{total_respondieron}", help = "Nº total de usuarios que respondieron el mensaje del coach")
         # Crear DataFrame para el gráfico de barras
         df_plot = pd.DataFrame({
-            "Estado": ["Recibieron mensaje", "Respondieron mensaje"],
+            "Estado": ["Abrieron mensaje", "Respondieron mensaje"],
             "Cantidad de Usuarios": [total_recibieron, total_respondieron]
         })
 
     # Gráfico de barras: Recibieron vs. Respondieron
-    st.markdown("### 📊 Comparación de Usuarios que Recibieron vs. Respondieron")
+    st.markdown("### 📊 Comparación de Usuarios que Abrieron vs. Respondieron")
     fig = px.bar(df_plot, x="Estado", y="Cantidad de Usuarios", text="Cantidad de Usuarios",
                 color="Estado", color_discrete_map={
-                    "Recibieron mensaje": "#2A6A7D",  # Azul
+                    "Abrieron mensaje": "#2A6A7D",  # Azul
                     "Respondieron mensaje": "#ff7f0e"  # Naranja
                 },
-                title="Usuarios que Recibieron vs. Respondieron el mensaje")
+                title="Usuarios que Abrieron vs. Respondieron el mensaje")
 
     fig.update_traces(texttemplate="%{text}", textposition="outside")
     fig.update_layout(yaxis_title="Cantidad de Usuarios")
