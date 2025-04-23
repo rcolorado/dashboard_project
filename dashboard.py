@@ -218,7 +218,7 @@ elif metric_type == "Coach":
     usuarios = contar_usuarios_unicos(df_trainings, fecha_inicio='2025-02-28', company_name=company_filter, group_name = group_filter)
     # Diseño en columnas para las métricas
     st.markdown("### 👥 Distribución de Usuarios")
-    st.metric (label="👤 Nº total de usuarios", value = f"{usuarios}", help = "Nº total de usuarios que han recibido el mensaje del coach")
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -271,60 +271,36 @@ elif metric_type == "Cumplimentación":
     # Filtros
     company_filter = selected_company if selected_company != "Todas" else None
     group_filter = selected_group if selected_group != "Todos" else None
-    df_merged, resumen_general, resumen_modulos = obtener_resumen_progreso(df_cumplimentacion, company_filter, group_filter)
+    # Checkbox para incluir usuarios sin progreso
+    incluir_sin_progreso = st.checkbox("Incluir usuarios sin progreso", value=False,  help="Si se activa, se incluirán también los usuarios que no han completado ningún ejercicio."
+)
 
+    df_cumplimentacion, resumen_ejercicios = obtener_resumen_progreso(
+        df_cumplimentacion,
+        company_filter,
+        group_filter,
+        include_zero_progress=incluir_sin_progreso
+    )
     # --- KPIs
-    total_usuarios = df_merged["user_id"].nunique()
-    completados = df_merged[df_merged["completed"] == True]["user_id"].nunique()
-    porcentaje_completado = (completados / total_usuarios * 100) if total_usuarios > 0 else 0
+    total_usuarios = df_cumplimentacion["user_id"].nunique()
+    porcentaje_completado = df_cumplimentacion["progress_percent"].mean()
     st.markdown("##### 📊 Resumen de Cumplimentación General")
-    kpi1, kpi2, kpi3 = st.columns(3)
+
+    kpi1, kpi2= st.columns(2)
     kpi1.metric("👤 Usuarios", total_usuarios)
-    kpi2.metric("✅ Completados", completados)
-    kpi3.metric("📈 % Completado", f"{porcentaje_completado:.2f}%")
+    kpi2.metric("📈 % Cumplimentación media", f"{porcentaje_completado:.2f}%", help="Porcentaje de cumplimentación total teniendo en cuenta los tres módulos")
 
-    # --- Resumen por tipo de progreso
-    st.markdown("### 🔁 Cumplimentación por tipo de progreso")
-    resumen_general = resumen_general.rename(columns={
-    'progress_type': 'Tipo',
-    'total_usuarios': 'Total usuarios',
-    'usuarios_completados': 'Completados',
-    'porcentaje_completado': 'Porcentaje (%)'
-    })
-
-    # Reemplazar los valores en la columna 'Tipo'
-    resumen_general['Tipo'] = resumen_general['Tipo'].replace({
-        'progress_checkpoint': 'checkpoint',
-        'progress_episode': 'episodios',
-        'progress_exercise': 'ejercicios',
-        'progress_module': 'modulos',
-        'progress_training': 'entrenamientos'
-    })
-    col1, col2 = st.columns(2)
-
-    with col1:
-        resumen_general
-
-    with col2:
-        fig_tipo = px.pie(
-            resumen_general,
-            names='Tipo',
-            values='Completados',
-            title='Distribución de completados por tipo',
-            color_discrete_sequence=[PRIMARY_COLOR, ACCENT_COLOR, TEXT_COLOR]
-        )
-        st.plotly_chart(fig_tipo, use_container_width=True)
-
+   
     # --- Resumen por módulo
     st.markdown("---")
     st.markdown("### 📚 Cumplimentación por módulo")
-    resumen_modulos = resumen_modulos.rename(columns={
+    resumen_modulos= df_cumplimentacion.groupby("module_name")["progress_percent"].mean().reset_index().sort_values(by="progress_percent", ascending=False)
+    resumen_modulos= resumen_modulos.rename(columns={
     'module_name': 'Módulo',
-    'total_usuarios': 'Total usuarios',
-    'usuarios_completados': 'Completados',
-    'porcentaje_completado': 'Porcentaje (%)'
+    'progress_percent': 'Porcentaje (%)'
     })
-
+    # Redondear a 2 decimales
+    resumen_modulos['Porcentaje (%)'] = resumen_modulos['Porcentaje (%)'].round(2)
      # Reemplazar los valores en la columna 'Tipo'
     resumen_modulos['Módulo'] = resumen_modulos['Módulo'].replace({
         'transformacion-intrapersonal': 'Módulo 1: Transformación Intrapersonal',
@@ -335,6 +311,7 @@ elif metric_type == "Cumplimentación":
     with col3:
         st.dataframe(resumen_modulos, use_container_width=True)
 
+    # Crear el gráfico de barras
     with col4:
         fig_modulos = px.bar(
             resumen_modulos.sort_values("Porcentaje (%)", ascending=True),
@@ -342,9 +319,10 @@ elif metric_type == "Cumplimentación":
             y="Módulo",
             orientation="h",
             color="Porcentaje (%)",
-            color_continuous_scale=[[0, ACCENT_COLOR], [1,PRIMARY_COLOR]],
+            color_continuous_scale=[[0, ACCENT_COLOR], [1, PRIMARY_COLOR]],
             labels={"Porcentaje (%)": "% Completado", "Módulo": "Módulo"},
-            title="Progreso por módulo (%)"
+            title="Progreso por módulo (%)",
+            text="Porcentaje (%)"  # Añadir el porcentaje como texto en cada barra
         )
         fig_modulos.update_layout(
             yaxis_title="", 
@@ -354,7 +332,113 @@ elif metric_type == "Cumplimentación":
             plot_bgcolor=BACKGROUND_COLOR,
             paper_bgcolor=BACKGROUND_COLOR
         )
+
+        # Hacer que las etiquetas (porcentaje) se ajusten mejor sobre las barras
+        fig_modulos.update_traces(texttemplate='%{text}%', textposition='outside')
+
+        # Mostrar el gráfico
         st.plotly_chart(fig_modulos, use_container_width=True)
+  
+    # Filtrar por módulo
+    modulo_1 = resumen_ejercicios[resumen_ejercicios["module_name"] == "transformacion-intrapersonal"]
+    modulo_2 = resumen_ejercicios[resumen_ejercicios["module_name"] == "transformacion-interpersonal"]
+    modulo_3 = resumen_ejercicios[resumen_ejercicios["module_name"] == "transformacion-transversal"]
+    modulo_1_clean = modulo_1.reset_index(drop=True)
+    modulo_2_clean = modulo_2.reset_index(drop=True)
+    modulo_3_clean = modulo_3.reset_index(drop=True)
+
+    # Función para preparar cada dataframe
+    def preparar_dataframe(df, total_usuarios):
+        # Añadir la columna de porcentaje de completado
+        df["Porcentaje completado"] = ((df["completed_count"] / total_usuarios) * 100).round(2)
+
+        # Renombrar columnas
+        df = df[["exercise_name_complete", "completed_count", "Porcentaje completado"]].copy()
+        df.columns = ["Ejercicio", "Nº veces completado", "Porcentaje (%)"]
+        
+        # Ordenar por número de veces completado de mayor a menor
+        return df.sort_values("Nº veces completado", ascending=False)
+
+    # En tu código de Streamlit, usa la función como sigue
+    col5, col6, col7 = st.columns(3)
+
+    # Mostrar tablas con los datos de los módulos
+    with col5:
+        st.markdown("##### 🧠 Módulo 1: Transformación Intrapersonal")
+        st.dataframe(preparar_dataframe(modulo_1_clean, total_usuarios), use_container_width=True)
+
+    with col6:
+        st.markdown("##### 🤝 Módulo 2: Transformación Interpersonal")
+        st.dataframe(preparar_dataframe(modulo_2_clean, total_usuarios), use_container_width=True)
+
+    with col7:
+        st.markdown("##### 🔄 Módulo 3: Transformación Transversal")
+        st.dataframe(preparar_dataframe(modulo_3_clean, total_usuarios), use_container_width=True)
+
+    PRIMARY_COLOR_SOFT = "#FFD16C"  # Tono más claro de PRIMARY_COLOR
+    ACCENT_COLOR_SOFT = "#A2BDC4"   # Tono más claro de ACCENT_COLOR
+
+    def mostrar_podium(df, nombre_modulo):
+        top = df.sort_values("completed_count", ascending=False).iloc[0]
+        bottom = df.sort_values("completed_count", ascending=True).iloc[0]
+        st.markdown(
+            f"""
+            <h4 style="text-align: center; margin-bottom: 35px;">{nombre_modulo}</h4>
+            """,
+            unsafe_allow_html=True
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown(
+                f"""
+                <div style="background-color:{PRIMARY_COLOR_SOFT}; padding:10px; border-radius:9px; text-align:center; color:white; max-width: 550px; margin: auto; margin-bottom: 35px;">
+                    <h4>🔥 Más completado</h4>
+                    <h3>{top['exercise_name_complete']}</h3>
+                    <p><b>{top['completed_count']} veces</b></p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with col2:
+            st.markdown(
+                f"""
+                <div style="background-color:{ACCENT_COLOR_SOFT}; padding:12px; border-radius:12px; text-align:center; color:{ACCENT_COLOR}; max-width: 550px; margin: auto;margin-bottom: 35px;">
+                    <h4>❄️ Menos completado</h4>
+                    <h3>{bottom['exercise_name_complete']}</h3>
+                    <p><b>{bottom['completed_count']} veces</b></p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+    st.markdown("------------------------------------------------------------------------------------------")
+    st.markdown("#### 🔝 Ejercicios más y menos completados")
+    # Mostrar "podiums"
+    mostrar_podium(modulo_1, "1. Transformación Intrapersonal")
+    mostrar_podium(modulo_2, "2. Transformación Interpersonal")
+    mostrar_podium(modulo_3, "3. Transformación Transversal")
+
+        #top_bottom_1(modulo_1, "🧠 Intrapersonal"),
+        #top_bottom_1(modulo_2, "🤝 Interpersonal"),
+        #top_bottom_1(modulo_3, "🔄 Transversal")
+    st.markdown("------------------------------------------------------------------------------------------")
+    # Botón para descargar los datos en Excel
+    # Función para descargar el DataFrame en Excel
+    def descargar_excel(df, nombre_archivo="datos_cumplimentacion.xlsx"):
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name="Datos")
+        output.seek(0)
+        return output
+    excel_file = descargar_excel(df_cumplimentacion)
+    st.download_button(
+        label="📥 Descargar datos en Excel",
+        data=excel_file,
+        file_name="datos_cumplimentacion.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 elif metric_type == "Entrenamientos":

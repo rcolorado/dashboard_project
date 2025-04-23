@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 
 def calcular_metricas_recurrencia(df, company_name=None, group_name=None):
     # Unir datos de usuarios, grupos y empresas
@@ -571,56 +572,253 @@ def contar_usuarios_unicos(df, fecha_inicio='2025-02-28',  company_name = None, 
     # Contar usuarios únicos
     return df_filtrado["user"].nunique()
 
-def obtener_resumen_progreso(df, company_name=None, group_name=None):
-    # --- MERGE DE TODOS LOS DATAFRAMES ---
-    # Merge df["progress"] with df["users"]
-    df_progress_users = df["progress"].merge(df["users"], left_on="user_id", right_on="user_id", how="left")
-    # Merge the result with df["modules"]
-    df_progress_modules = df_progress_users.merge(df["modules"], left_on="module_id", right_on="module_id", how="left")
-    # Merge the result with df["companies"]
-    df_progress_modules_users_companies = df_progress_modules.merge(df["companies"], left_on="company_id", right_on="company_id", how="left")
-    # Merge the result with df["groups"]
-    df_progress_modules_users_companies_groups = df_progress_modules_users_companies.merge(df["groups"], left_on="group_id", right_on="group_id", how="left")
-    # Final merged DataFrame
-    df_merged = df_progress_modules_users_companies_groups
+def obtener_resumen_progreso_ant(df, company_name=None, group_name=None, include_zero_progress=False):
+    from datetime import datetime
+    import pandas as pd
+
+    # Unir usuarios con grupos y empresas
+    users = df["users"].merge(df["groups"], on="group_id", how="left") \
+                       .merge(df["companies"], on="company_id", how="left")
 
     # --- FILTROS POR EMPRESA Y GRUPO ---
-    # Aplicar filtros si se especifican
     if company_name:
-        df_merged = df_merged[df_merged["company_name"] == company_name]
+        users = users[users["company_name"] == company_name]
     if group_name:
-        df_merged = df_merged[df_merged["group_name"] == group_name]
+        users = users[users["group_name"] == group_name]
 
-    # --- RESUMEN GENERAL POR TIPO DE PROGRESO ---
-    resumen_general = (
-        df_merged.drop_duplicates(subset=["user_id", "progress_type"])
-        .groupby("progress_type")
-        .agg(
-            total_usuarios=('user_id', 'nunique'),
-            usuarios_completados=('completed', lambda x: x.sum())
-        )
-        .reset_index()
+    # Excluir ejercicios con episodios que empiezan en el futuro
+    episodios = df["episodes"].copy()
+    if "startDate" in episodios.columns:
+        episodios["startDate"] = pd.to_datetime(episodios["startDate"], errors="coerce")
+        episodios = episodios[episodios["startDate"].isnull() | (episodios["startDate"] <= datetime.now())]
+
+    # Unir ejercicios con episodios válidos
+    ejercicios = df["exercises"].explode("episode_id").merge(
+        episodios[["episode_id"]], on="episode_id", how="inner"
     )
-    resumen_general["porcentaje_completado"] = (
-        resumen_general["usuarios_completados"] / resumen_general["total_usuarios"] * 100
-    ).round(2)
 
-    # --- RESUMEN POR MÓDULO ---
-    df_modulos = df_merged[df_merged["progress_type"] == "progress_module"].copy()
-    df_modulos = df_modulos.dropna(subset=["module_name"])
-    df_modulos_unique = df_modulos.drop_duplicates(subset=["user_id", "module_name"])
+    # Excluir ejercicios exclusivos para managers
+    ejercicios = ejercicios[ejercicios["isExclusiveToManagers"] != True]
 
-    resumen_modulos = (
-        df_modulos_unique.groupby("module_name")
-        .agg(
-            total_usuarios=('user_id', 'nunique'),
-            usuarios_completados=('completed', lambda x: x.sum())
-        )
-        .reset_index()
+    # Eliminar ejercicios reemplazados
+    reemplazados = ejercicios["replaces"].dropna().tolist()
+    ejercicios = ejercicios[~ejercicios["exercise_id"].isin(reemplazados)]
+
+    # --- PROGRESO ---
+    progreso = df["progress"]
+    progreso = progreso[(progreso["progress_type"] == "progress_exercise")]
+
+    if not include_zero_progress:
+        progreso = progreso[progreso["completed"] == True]
+
+    # Aseguramos explosión correcta de module_id
+    progreso = progreso.explode("module_id")
+    progreso["module_id"] = progreso["module_id"].apply(lambda x: x if isinstance(x, list) else [x])
+    progreso = progreso.explode("module_id")
+
+    # Explotar module_id en ejercicios también
+    ejercicios = ejercicios.explode("module_id")
+
+    # Eliminar duplicada si la hay
+    if "module_id" in progreso.columns:
+        progreso = progreso.drop(columns=["module_id"])
+
+    # Renombrar para merge
+    ejercicios_ren = ejercicios.rename(columns={"module_id": "mod_id_ejercicio"})
+    progreso_filtrado = progreso.merge(
+        ejercicios_ren[["exercise_id", "mod_id_ejercicio"]],
+        on="exercise_id", how="inner"
     )
-    resumen_modulos["porcentaje_completado"] = (
-        resumen_modulos["usuarios_completados"] / resumen_modulos["total_usuarios"] * 100
-    ).round(2)
 
-    return df_merged, resumen_general, resumen_modulos
+    progreso_filtrado = progreso_filtrado.rename(columns={"mod_id_ejercicio": "module_id"})
 
+    # --- Total ejercicios por módulo ---
+    total_por_modulo = ejercicios.groupby("module_id")["exercise_id"].nunique().reset_index()
+    total_por_modulo.columns = ["module_id", "total_exercises"]
+
+    # --- Completado por usuario ---
+    completado = progreso_filtrado.groupby(["user_id", "module_id"])["exercise_id"].nunique().reset_index()
+    completado.columns = ["user_id", "module_id", "completed_exercises"]
+
+    # --- Opción: Incluir usuarios sin progreso ---
+    if include_zero_progress:
+        # Obtener combinaciones posibles de user_id y module_id
+        users_ids = users["user_id"].unique()
+        module_ids = total_por_modulo["module_id"].unique()
+        combinaciones = pd.MultiIndex.from_product([users_ids, module_ids], names=["user_id", "module_id"]).to_frame(index=False)
+
+        # Unir con los datos reales de completado (los que tienen progreso)
+        completado = combinaciones.merge(completado, on=["user_id", "module_id"], how="left").fillna(0)
+        completado["completed_exercises"] = completado["completed_exercises"].astype(int)
+
+    # --- Juntar con totales y calcular avance ---
+    avance = completado.merge(total_por_modulo, on="module_id", how="left")
+    avance["progress_percent"] = (avance["completed_exercises"] / avance["total_exercises"]) * 100
+
+    # Añadir nombre de módulo
+    avance = avance.merge(df["modules"], on="module_id", how="left")
+
+    # Añadir datos de usuario, empresa y grupo
+    resultado = avance.merge(users, on="user_id", how="inner")
+
+    columnas_finales = [
+        "company_name", "group_name", "user_id", "user_first_name", "user_last_name",
+        "module_name", "progress_percent", "completed_exercises", "total_exercises"
+    ]
+    resultado = resultado[columnas_finales].sort_values(
+        by=["company_name", "group_name", "user_id", "module_name"]
+    )
+
+    return resultado
+
+def obtener_resumen_progreso(df, company_name=None, group_name=None, include_zero_progress=False):
+    from datetime import datetime
+    import pandas as pd
+
+    # Unir usuarios con grupos y empresas
+    users = df["users"].merge(df["groups"], on="group_id", how="left") \
+                       .merge(df["companies"], on="company_id", how="left")
+
+    # --- FILTROS POR EMPRESA Y GRUPO ---
+    if company_name:
+        users = users[users["company_name"] == company_name]
+    if group_name:
+        users = users[users["group_name"] == group_name]
+
+    # Excluir ejercicios con episodios que empiezan en el futuro
+    episodios = df["episodes"].copy()
+    if "startDate" in episodios.columns:
+        episodios["startDate"] = pd.to_datetime(episodios["startDate"], errors="coerce")
+        episodios = episodios[episodios["startDate"].isnull() | (episodios["startDate"] <= datetime.now())]
+
+    # Unir ejercicios con episodios válidos
+    ejercicios = df["exercises"].explode("episode_id").merge(
+        episodios[["episode_id"]], on="episode_id", how="inner"
+    )
+
+    # Excluir ejercicios exclusivos para managers
+    ejercicios = ejercicios[ejercicios["isExclusiveToManagers"] != True]
+
+    # Eliminar ejercicios reemplazados
+    reemplazados = ejercicios["replaces"].dropna().tolist()
+    ejercicios = ejercicios[~ejercicios["exercise_id"].isin(reemplazados)]
+
+    # --- PROGRESO ---
+    progreso = df["progress"]
+    progreso = progreso[(progreso["progress_type"] == "progress_exercise")]
+
+    if not include_zero_progress:
+        progreso = progreso[progreso["completed"] == True]
+
+    # Aseguramos explosión correcta de module_id
+    progreso = progreso.explode("module_id")
+    progreso["module_id"] = progreso["module_id"].apply(lambda x: x if isinstance(x, list) else [x])
+    progreso = progreso.explode("module_id")
+
+    # Explotar module_id en ejercicios también
+    ejercicios = ejercicios.explode("module_id")
+
+    # Eliminar duplicada si la hay
+    if "module_id" in progreso.columns:
+        progreso = progreso.drop(columns=["module_id"])
+
+    # Renombrar para merge
+    ejercicios_ren = ejercicios.rename(columns={"module_id": "mod_id_ejercicio"})
+    progreso_filtrado = progreso.merge(
+        ejercicios_ren[["exercise_id", "mod_id_ejercicio"]],
+        on="exercise_id", how="inner"
+    )
+    progreso_filtrado = progreso_filtrado.rename(columns={"mod_id_ejercicio": "module_id"})
+
+    # --- Total ejercicios por módulo ---
+    total_por_modulo = ejercicios.groupby("module_id")["exercise_id"].nunique().reset_index()
+    total_por_modulo.columns = ["module_id", "total_exercises"]
+
+    # --- Completado por usuario ---
+    completado = progreso_filtrado.groupby(["user_id", "module_id"])["exercise_id"].nunique().reset_index()
+    completado.columns = ["user_id", "module_id", "completed_exercises"]
+
+    # --- Opción: Incluir usuarios sin progreso ---
+    if include_zero_progress:
+        users_ids = users["user_id"].unique()
+        module_ids = total_por_modulo["module_id"].unique()
+        combinaciones = pd.MultiIndex.from_product([users_ids, module_ids], names=["user_id", "module_id"]).to_frame(index=False)
+
+        completado = combinaciones.merge(completado, on=["user_id", "module_id"], how="left").fillna(0)
+        completado["completed_exercises"] = completado["completed_exercises"].astype(int)
+
+    # --- Juntar con totales y calcular avance ---
+    avance = completado.merge(total_por_modulo, on="module_id", how="left")
+    avance["progress_percent"] = (avance["completed_exercises"] / avance["total_exercises"]) * 100
+
+    # Añadir nombre de módulo
+    avance = avance.merge(df["modules"], on="module_id", how="left")
+
+    # Añadir datos de usuario, empresa y grupo
+    resultado = avance.merge(users, on="user_id", how="inner")
+
+    columnas_finales = [
+        "company_name", "group_name", "user_id", "user_first_name", "user_last_name",
+        "module_name", "progress_percent", "completed_exercises", "total_exercises"
+    ]
+    resultado = resultado[columnas_finales].sort_values(
+        by=["company_name", "group_name", "user_id", "module_name"]
+    )
+
+    # --- NUEVO BLOQUE: Ejercicios ordenados por número de veces completado ---
+    user_ids_filtrados = users["user_id"].unique()
+
+    # ✅ Solo considerar progreso real de usuarios filtrados
+    progreso_real = progreso_filtrado[progreso_filtrado["completed"] == True]
+    progreso_real = progreso_real[progreso_real["user_id"].isin(user_ids_filtrados)]
+
+    conteo = progreso_real.groupby(["module_id", "exercise_id"]).size().reset_index(name="completed_count")
+    conteo = conteo.merge(df["modules"][["module_id", "module_name"]], on="module_id", how="left")
+    conteo = conteo.merge(
+        df["exercises"][["exercise_id", "exercise_name"]].rename(columns={"name": "exercise_name"}),
+        on="exercise_id", how="left"
+    )
+
+    resumen_ejercicios = conteo.sort_values(by=["module_name", "completed_count"], ascending=[True, False])
+    # --- Porcentaje de cumplimentación por ejercicio ---
+    # Total de usuarios (filtrados por empresa o grupo si se proporciona)
+    total_usuarios = len(users)
+
+
+    nombres_completos = {
+        "capacidades-adaptacion": "Capacidades de adaptación",
+        "comportamientos-modo-proteccion": "Comportamientos del modo protección",
+        "contribuir-cambio": "Contribuir al cambio",
+        "contribuir-cambio-mando": "Contribuir al cambio",
+        "elegir-retos-personales": "Elegir retos personales",
+        "identificar-retos-adaptativos": "Identificar retos adaptativos",
+        "mentalidades-trabajo": "Mentalidades en el trabajo",
+        "miedos-profesionales": "Mis miedos profesionales",
+        "percepciones-disparan-modo-proteccion": "Percepciones que disparan el modo protección",
+        "prisa-interior-atencion-plena": "Prisa interior y atención plena",
+        "solucionar-retos-adaptativos": "Solucionar retos adaptativos",
+        "cociente-empatia": "Cociente de empatía",
+        "conoce-ego": "Conoce tu ego",
+        "conversaciones-feedback": "Conversaciones de feedback",
+        "cultura-feedback": "Cultura de feedback",
+        "feedback": "El feedback y yo",
+        "perfil-confianza": "El perfil de confianza",
+        "entorno-laboral-autoestima": "Entorno laboral y autoestima",
+        "frenos-empatia": "Frenos a la empatía",
+        "generosidad-inteligente": "La generosidad inteligente",
+        "mapa-relaciones": "Mapa de relaciones",
+        "relaciones-cotidianas": "Mis relaciones cotidianas",
+        "inspirador-proposito": "Yo como inspirador del propósito",
+        "conversaciones-desarrollo": "Conversaciones de desarrollo",
+        "conversaciones-valientes-parte-1": "Conversaciones valientes en transversal",
+        "conversaciones-valientes-parte-3": "Conversaciones valientes hacia abajo",
+        "conversaciones-valientes-parte-2": "Conversaciones valientes hacia arriba",
+        "inteligencia-accion": "La inteligencia en acción",
+        "bases-agilidad": "Las bases de la agilidad",
+        "bases-colaboracion": "Las bases de la colaboración",
+        "niveles-gustaria-moverme": "Niveles en los que me gustaría moverme",
+        "niveles-muevo": "Niveles en los que me muevo"
+    }
+    resumen_ejercicios["exercise_name_complete"] = resumen_ejercicios["exercise_name"].map(nombres_completos)
+
+    return resultado, resumen_ejercicios

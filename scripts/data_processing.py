@@ -17,7 +17,7 @@ collection_columns = {
         "rename": {"_id": "group_id", "name": "group_name"}
     },
     "users": {
-        "keep": ["_id", "group", "company", "email", "firstName", "lastName"],
+        "keep": ["_id", "group", "company", "email", "firstName", "lastName", "roles"],
         "rename": {"_id": "user_id", "group": "group_id", "company": "company_id", "email": "user_email", "firstName": "user_first_name", "lastName": "user_last_name"}
     },
     "connections": {
@@ -25,19 +25,19 @@ collection_columns = {
         "rename": {"_id": "connection_id", "user": "user_id"}
     },
     "progress": {
-        "keep": ["_id", "user", "type", "completionDate", "createdAt", "updatedAt", "completed", "isViewed", "module"],
-        "rename": {"_id": "progress_id", "user": "user_id", "type": "progress_type", "module": "module_id"}
+        "keep": ["_id", "user", "type", "completionDate", "createdAt", "updatedAt", "completed", "isViewed", "module", "exercise"],
+        "rename": {"_id": "progress_id", "user": "user_id", "type": "progress_type", "module": "module_id", "exercise": "exercise_id"}
     },
     "modules": {
         "keep": ["_id", "namedId"],
         "rename": {"_id": "module_id", "namedId": "module_name"}
     },
     "episodes": {
-        "keep": ["_id", "namedId"],
+        "keep": ["_id", "namedId", "isExclusiveToManagers", "replaces"],
         "rename": {"_id": "episode_id", "namedId": "episode_name"}
     },
     "exercises": {
-        "keep": ["_id", "namedId", "modules", "episodes"],
+        "keep": ["_id", "namedId", "modules", "episodes","isExclusiveToManagers", "replaces"],
         "rename": {"_id": "exercise_id", "namedId": "exercise_name", "modules": "module_id", "episodes": "episode_id"}
     },
     "answers": {
@@ -45,7 +45,7 @@ collection_columns = {
         "rename": {"_id": "answer_id", "exercise": "exercise_id", "user": "user_id"}
     },
     "translations": {
-        "keep": ["_id", "namedId"],
+        "keep": ["_id", "namedId", "content"],
         "rename": {"_id": "translation_id", "namedId": "translation_name"}
     }
 }
