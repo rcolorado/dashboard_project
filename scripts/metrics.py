@@ -1,5 +1,4 @@
 import pandas as pd
-from datetime import datetime
 
 def calcular_metricas_recurrencia(df, company_name=None, group_name=None):
     # Unir datos de usuarios, grupos y empresas
@@ -12,10 +11,10 @@ def calcular_metricas_recurrencia(df, company_name=None, group_name=None):
         df_recurrencia = df_recurrencia[df_recurrencia["group_name"] == group_name]
     
     # Filtrar por tipo de progreso específico
-    df_progress = df["progress"].query("progress_type == 'progress_checkpoint'")
+    df["progress"] = df["progress"].query("progress_type == 'progress_checkpoint'")
     
     # Agregar cantidad de checkpoints y última fecha
-    df_progress_recurrencia = df_progress.groupby("user_id").agg(
+    df_progress_recurrencia = df["progress"].groupby("user_id").agg(
         checkpoint_count=("progress_type", "size"),
         checkpoint_date=("completionDate", "max")
     ).reset_index()
@@ -81,25 +80,25 @@ def calcular_metricas_connections(df, company_name=None, group_name=None):
         df_connections = df_connections[df_connections["group_name"] == group_name]
 
     # Unir ejercicios con respuestas
-    df["exercises"] = df["exercises"].merge(df["answers"], how="left")
+   # df["exercises"] = df["exercises"].merge(df["answers"], how="left")
 
     # Explode listas module_id
-    if "module_id" in df["exercises"].columns:
-        df["exercises"] = df["exercises"].explode("module_id")
+    # if "module_id" in df["exercises"].columns:
+      #  df["exercises"] = df["exercises"].explode("module_id")
 
     # Unir ejercicios con módulos
-    df["exercises"] = df["exercises"].merge(df["modules"], how="left")
+    # df["exercises"] = df["exercises"].merge(df["modules"], how="left")
 
     # Explode listas episode_id
-    if "episode_id" in df["exercises"].columns:
-        df["exercises"] = df["exercises"].explode("episode_id")
-    df["exercises"] = df["exercises"].merge(df["episodes"], how="left")
+  #  if "episode_id" in df["exercises"].columns:
+  #      df["exercises"] = df["exercises"].explode("episode_id")
+  #  df["exercises"] = df["exercises"].merge(df["episodes"], how="left")
     
     # Unir conexiones con ejercicios
-    df_connections = df_connections.merge(df["exercises"], how="left")
+  #  df_connections = df_connections.merge(df["exercises"], how="left")
     
     # Seleccionar columnas específicas y guardarlas en un nuevo DataFrame
-    selected_columns = ["user_id", "connection_id", "connectionDuration", "group_name", "company_name",  "module_name", "episode_name", "exercise_name", "startDate"]
+    selected_columns = ["user_id", "connection_id", "connectionDuration", "group_name", "company_name", "startDate"]
     df_selected = df_connections[selected_columns]
 
     return df_selected
@@ -251,7 +250,7 @@ def calcular_metricas_entrenamientos(df, module_name=None, company_name=None, gr
         aggfunc="first",
         sort=False
     )
-    valid_training_actions = valid_training_actions.drop(columns=valid_training_actions.columns[[7, 10]])
+    # valid_training_actions = valid_training_actions.drop(columns=valid_training_actions.columns[[7, 10]])
     type = "answer_training_notepad"
     training_notepad = df["answers"].query("type == @type")[[
         "user", 'trainingNamedId', 'notepad', 'firstNoteInput', 'secondNoteInput',
@@ -498,13 +497,13 @@ def calcular_metricas_coach(df, company_name = None, group_name = None):
         df_coach = df_coach[df_coach["group_name"] == group_name]
 
     # Tabla de usuarios que recibieron mensajes del coach: Empresa, Grupo, Usuario (nº de usuarios)
-    recibieron_msg_summary = df_coach.query("assistantMessagesAmount > 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
+    recibieron_msg_summary = df_coach.query("assistantMessagesAmount >= 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
     recibieron_msg_summary = recibieron_msg_summary.rename(columns={
         "company_name": "Compañía", "group_name": "Grupo", "user_count": "# Usuarios"
     })
     recibieron_msg_summary.to_excel("Alcanzados por el coach.xlsx")
   
-    respondieron_msg_summary = df_coach.query("userMessagesAmount > 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
+    respondieron_msg_summary = df_coach.query("userMessagesAmount >= 0").groupby(["company_name", "group_name"]).size().to_frame("user_count").reset_index()
     respondieron_msg_summary = respondieron_msg_summary.rename(columns={
         "company_name": "Compañía", "group_name": "Grupo", "user_count": "# Usuarios"
     })
@@ -525,24 +524,9 @@ def calcular_metricas_coach(df, company_name = None, group_name = None):
         "company_name": "Compañía", "group_name": "Grupo", "name": "Nombre", "email": "Correo",
         "messages.date": "Fecha", "messages.role": "Rol", "messages.content": "Mensaje"
     })
-    # respondieron_msg.to_excel("Conversaciones coach.xlsx")
+
     return respondieron_msg,  recibieron_msg_summary,  respondieron_msg_summary
 
-def contar_usuarios_antigua(df, fecha_inicio='2025-02-28', company=None, group=None):
-
-    # Filtrar por fecha y usuarios que desbloquearon el coach
-    df_filtrado = df.query("hasUnlockedCoach == True and startDate > @fecha_inicio")
-
-    # Filtro opcional por empresa
-    if company:
-        df_filtrado = df_filtrado[df_filtrado["company_name"] == company]
-
-    # Filtro opcional por grupo
-    if group:
-        df_filtrado = df_filtrado[df_filtrado["group_name"] == group]
-
-    # Contar usuarios únicos
-    return df_filtrado["user"].nunique()
 
 def contar_usuarios_unicos(df, fecha_inicio='2025-02-28',  company_name = None, group_name = None):
     df_companies = df["companies"][["_id", "name"]].rename(columns={"_id": "company", "name": "company_name"})
@@ -572,104 +556,6 @@ def contar_usuarios_unicos(df, fecha_inicio='2025-02-28',  company_name = None, 
     # Contar usuarios únicos
     return df_filtrado["user"].nunique()
 
-def obtener_resumen_progreso_ant(df, company_name=None, group_name=None, include_zero_progress=False):
-    from datetime import datetime
-    import pandas as pd
-
-    # Unir usuarios con grupos y empresas
-    users = df["users"].merge(df["groups"], on="group_id", how="left") \
-                       .merge(df["companies"], on="company_id", how="left")
-
-    # --- FILTROS POR EMPRESA Y GRUPO ---
-    if company_name:
-        users = users[users["company_name"] == company_name]
-    if group_name:
-        users = users[users["group_name"] == group_name]
-
-    # Excluir ejercicios con episodios que empiezan en el futuro
-    episodios = df["episodes"].copy()
-    if "startDate" in episodios.columns:
-        episodios["startDate"] = pd.to_datetime(episodios["startDate"], errors="coerce")
-        episodios = episodios[episodios["startDate"].isnull() | (episodios["startDate"] <= datetime.now())]
-
-    # Unir ejercicios con episodios válidos
-    ejercicios = df["exercises"].explode("episode_id").merge(
-        episodios[["episode_id"]], on="episode_id", how="inner"
-    )
-
-    # Excluir ejercicios exclusivos para managers
-    ejercicios = ejercicios[ejercicios["isExclusiveToManagers"] != True]
-
-    # Eliminar ejercicios reemplazados
-    reemplazados = ejercicios["replaces"].dropna().tolist()
-    ejercicios = ejercicios[~ejercicios["exercise_id"].isin(reemplazados)]
-
-    # --- PROGRESO ---
-    progreso = df["progress"]
-    progreso = progreso[(progreso["progress_type"] == "progress_exercise")]
-
-    if not include_zero_progress:
-        progreso = progreso[progreso["completed"] == True]
-
-    # Aseguramos explosión correcta de module_id
-    progreso = progreso.explode("module_id")
-    progreso["module_id"] = progreso["module_id"].apply(lambda x: x if isinstance(x, list) else [x])
-    progreso = progreso.explode("module_id")
-
-    # Explotar module_id en ejercicios también
-    ejercicios = ejercicios.explode("module_id")
-
-    # Eliminar duplicada si la hay
-    if "module_id" in progreso.columns:
-        progreso = progreso.drop(columns=["module_id"])
-
-    # Renombrar para merge
-    ejercicios_ren = ejercicios.rename(columns={"module_id": "mod_id_ejercicio"})
-    progreso_filtrado = progreso.merge(
-        ejercicios_ren[["exercise_id", "mod_id_ejercicio"]],
-        on="exercise_id", how="inner"
-    )
-
-    progreso_filtrado = progreso_filtrado.rename(columns={"mod_id_ejercicio": "module_id"})
-
-    # --- Total ejercicios por módulo ---
-    total_por_modulo = ejercicios.groupby("module_id")["exercise_id"].nunique().reset_index()
-    total_por_modulo.columns = ["module_id", "total_exercises"]
-
-    # --- Completado por usuario ---
-    completado = progreso_filtrado.groupby(["user_id", "module_id"])["exercise_id"].nunique().reset_index()
-    completado.columns = ["user_id", "module_id", "completed_exercises"]
-
-    # --- Opción: Incluir usuarios sin progreso ---
-    if include_zero_progress:
-        # Obtener combinaciones posibles de user_id y module_id
-        users_ids = users["user_id"].unique()
-        module_ids = total_por_modulo["module_id"].unique()
-        combinaciones = pd.MultiIndex.from_product([users_ids, module_ids], names=["user_id", "module_id"]).to_frame(index=False)
-
-        # Unir con los datos reales de completado (los que tienen progreso)
-        completado = combinaciones.merge(completado, on=["user_id", "module_id"], how="left").fillna(0)
-        completado["completed_exercises"] = completado["completed_exercises"].astype(int)
-
-    # --- Juntar con totales y calcular avance ---
-    avance = completado.merge(total_por_modulo, on="module_id", how="left")
-    avance["progress_percent"] = (avance["completed_exercises"] / avance["total_exercises"]) * 100
-
-    # Añadir nombre de módulo
-    avance = avance.merge(df["modules"], on="module_id", how="left")
-
-    # Añadir datos de usuario, empresa y grupo
-    resultado = avance.merge(users, on="user_id", how="inner")
-
-    columnas_finales = [
-        "company_name", "group_name", "user_id", "user_first_name", "user_last_name",
-        "module_name", "progress_percent", "completed_exercises", "total_exercises"
-    ]
-    resultado = resultado[columnas_finales].sort_values(
-        by=["company_name", "group_name", "user_id", "module_name"]
-    )
-
-    return resultado
 
 def obtener_resumen_progreso(df, company_name=None, group_name=None, include_zero_progress=False):
     from datetime import datetime
@@ -697,7 +583,7 @@ def obtener_resumen_progreso(df, company_name=None, group_name=None, include_zer
     )
 
     # Excluir ejercicios exclusivos para managers
-    ejercicios = ejercicios[ejercicios["isExclusiveToManagers"] != True]
+    # ejercicios = ejercicios[ejercicios["isExclusiveToManagers"] != True]
 
     # Eliminar ejercicios reemplazados
     reemplazados = ejercicios["replaces"].dropna().tolist()
@@ -788,7 +674,7 @@ def obtener_resumen_progreso(df, company_name=None, group_name=None, include_zer
     nombres_completos = {
         "capacidades-adaptacion": "Capacidades de adaptación",
         "comportamientos-modo-proteccion": "Comportamientos del modo protección",
-        "contribuir-cambio": "Contribuir al cambio",
+        "contribuir-cambio": "Contribuir al cambio member",
         "contribuir-cambio-mando": "Contribuir al cambio",
         "elegir-retos-personales": "Elegir retos personales",
         "identificar-retos-adaptativos": "Identificar retos adaptativos",

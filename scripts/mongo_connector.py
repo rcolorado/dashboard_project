@@ -63,23 +63,4 @@ def get_groups_for_company(company_name):
     if not groups_list:
         print(f"No se encontraron grupos para la empresa {company_name}")
     
-    return sorted(groups_list)
-    
-
-
-''''
-# Prueba de conexión a la base de datos
-db = get_mongo_connection()
-print(f"Conexión exitosa a la base de datos: {db.name}")
-# Prueba de obtener datos de una colección
-collection_name = "companies"  # Cambia por cualquier colección de tu base de datos
-df = get_collection_data(collection_name)
-print(df.head())  
-# Prueba de obtener los nombres de las empresas
-companies = get_company_names()
-print(companies)  # Imprime la lista de nombres de empresas
-
-company_name = "Emergia"  # Sustituye con el nombre de la empresa que deseas buscar
-groups = get_groups_for_company(company_name)
-print(groups)
-'''
+    return sorted(groups_list)    

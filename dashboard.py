@@ -1,4 +1,4 @@
-# Description: Dashboard para visualizar métricas de recurrencia, conexiones y entrenamientos de la plataforma bchange.
+# Description: Dashboard para visualizar métricas de recurrencia, conexiones, entrenamientos, datos del coach y cumplimentación de la plataforma bchange.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -17,17 +17,17 @@ PRIMARY_COLOR = "#FF9E01"  # Naranja
 TEXT_COLOR = "#00495E"  # Azul oscuro
 ACCENT_COLOR = "#2A6A7D"  # Azul medio
 BACKGROUND_COLOR = "#F8F9FA"  # Fondo claro
-BACKGROUND_IMAGE = "background.jpg"  # Ruta de tu imagen de fondo
+
 
 st.set_page_config(page_title="Dashboard bchange", 
                    page_icon="🚀", 
                    layout="wide",
                    initial_sidebar_state="expanded",
-                   #menu_items={
-                    #    'Get Help': "https://bchange.ai",
-                    #    'Report a bug': "rcolorado@bchange.ai",
-                    #    'About': "# This is an intern use dashboard!"
-    #}
+                   menu_items={
+                        'Get Help': 'https://www.extremelycoolapp.com/help',
+                        'Report a bug': "https://www.extremelycoolapp.com/bug",
+                        'About': "# This is a header. This is an *extremely* cool app!"
+    }
 )
 
 def check_password():
@@ -64,12 +64,12 @@ if "df" not in st.session_state:
 
 df = st.session_state.df  # Referencia al dataframe en session_state
 
-# Df entrenamientos, solo se carga una vez
+# Df entrenamientos, solo se carga una vez por sesión
 if "df_trainings" not in st.session_state:
     st.session_state.df_trainings = load_and_process_data_trainings()
 df_trainings = st.session_state.df_trainings  # Referencia al dataframe en session_state
 
-# Cargar el dataframe solo una vez por sesión
+# Df cumplimentación, solo una vez por sesión
 if "df_cumplimentacion" not in st.session_state:
     st.session_state.df_cumplimentacion = load_and_process_data_cumplimentacion()
 
@@ -99,10 +99,10 @@ st.markdown(
 metric_type = st.selectbox("Seleccione el tipo de métrica", ["Recurrencia", "Conexiones", "Entrenamientos", "Coach", "Cumplimentación"], index=0)
 
 if metric_type != "Entrenamientos":
-    # Empresas excluidas
+   # Empresas excluidas
     empresas_excluidas = ["Auren", "Demos Clientes"]
 
-    # Obtener y filtrar empresas
+# Obtener y filtrar empresas
     company_names = get_company_names()
     company_names = [name for name in company_names if name not in empresas_excluidas]
 
@@ -216,19 +216,21 @@ elif metric_type == "Coach":
     total_recibieron = recibieron_msg_summary['# Usuarios'].sum()
     total_respondieron = respondieron_msg_summary['# Usuarios'].sum()
     usuarios = contar_usuarios_unicos(df_trainings, fecha_inicio='2025-02-28', company_name=company_filter, group_name = group_filter)
+
     # Diseño en columnas para las métricas
     st.markdown("### 👥 Distribución de Usuarios")
+    st.metric (label="👤 Nº total de usuarios", value = f"{usuarios}", help = "Nº total de usuarios que han recibido el mensaje del coach")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric(label="📩 Recibieron ", value=f"{total_recibieron}", help=" Nº total de usuarios que clickaron el pop-up del coach")
+        st.metric(label="📩 Abrieron mensaje ", value=f"{total_recibieron}", help=" Nº total de usuarios que clickaron el pop-up del coach")
 
     with col2:
         st.metric(label="📨 Respondieron", value = f"{total_respondieron}", help = "Nº total de usuarios que respondieron el mensaje del coach")
         # Crear DataFrame para el gráfico de barras
         df_plot = pd.DataFrame({
-            "Estado": ["Abrieron mensaje", "Respondieron mensaje"],
+            "Estado": ["Recibieron mensaje", "Respondieron mensaje"],
             "Cantidad de Usuarios": [total_recibieron, total_respondieron]
         })
 
@@ -254,7 +256,7 @@ elif metric_type == "Coach":
         output.seek(0)
         return output
 
-    #  Mostrar el DataFrame `respondieron_msg`
+    # Mostrar el DataFrame `respondieron_msg`
     st.markdown("### 📋 Detalle de las conversaciones")
     st.dataframe(respondieron_msg, use_container_width=True)
 
@@ -438,8 +440,6 @@ elif metric_type == "Cumplimentación":
         data=excel_file,
         file_name="datos_cumplimentacion.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
 
 elif metric_type == "Entrenamientos":
     st.markdown(f"<h2 style='color: {ACCENT_COLOR};'> \U0001F4CC Métricas de {metric_type}</h2>", unsafe_allow_html=True)
